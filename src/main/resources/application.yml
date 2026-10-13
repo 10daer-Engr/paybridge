@@ -55,6 +55,9 @@ paystack:
 paybridge:
   sandbox:
     funding-enabled: true
+    partner-registration-enabled: true
+  partners:
+    default-credit-limit-usd: 10000.00
   rate-limit:
     enabled: true
   transfers:

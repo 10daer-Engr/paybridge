@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import java.security.Principal;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -58,8 +59,9 @@ class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private static boolean isRegistration(HttpServletRequest request) {
+        String path = request.getRequestURI();
         return "POST".equals(request.getMethod())
-                && request.getRequestURI().equals("/api/v1/customers/register");
+                && (path.equals("/api/v1/customers/register") || path.equals("/api/v1/partner/register"));
     }
 
     private static Policy policyFor(HttpServletRequest request) {
@@ -68,6 +70,7 @@ class RateLimitFilter extends OncePerRequestFilter {
 
         if (post && (path.startsWith("/api/v1/transfers")
                 || path.startsWith("/api/v1/sandbox/")
+                || path.startsWith("/api/v1/partner/")
                 || path.equals("/api/v1/accounts"))) {
             return MONEY;
         }
@@ -79,8 +82,8 @@ class RateLimitFilter extends OncePerRequestFilter {
 
     private static String identityOf(HttpServletRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedCustomer customer) {
-            return "customer:" + customer.id();
+        if (authentication != null && authentication.getPrincipal() instanceof Principal principal) {
+            return principal.getName();   // "customer:<id>" or "partner:<id>"
         }
         return "address:" + request.getRemoteAddr();
     }

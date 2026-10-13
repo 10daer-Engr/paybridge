@@ -7,6 +7,7 @@ import com.academy.paybridge.customer.domain.Customer;
 import com.academy.paybridge.customer.domain.CustomerStatus;
 import com.academy.paybridge.customer.repository.CustomerRepository;
 import com.academy.paybridge.shared.exception.BusinessException;
+import com.academy.paybridge.shared.security.ApiKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +34,7 @@ public class CustomerService implements CustomerApi {
             throw new BusinessException("EMAIL_ALREADY_REGISTERED", "That email is already registered");
         }
 
-        String apiKey = ApiKeys.generate();
+        String apiKey = ApiKeys.generate(CustomerApi.API_KEY_PREFIX);
         Customer saved = customerRepository.save(
                 Customer.register(fullName.trim(), normalizedEmail, ApiKeys.hash(apiKey), clock.instant()));
 

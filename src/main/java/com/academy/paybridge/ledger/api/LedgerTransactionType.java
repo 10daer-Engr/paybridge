@@ -4,5 +4,6 @@ public enum LedgerTransactionType {
     FUNDING,
     TRANSFER,
     EXTERNAL_PAYOUT,
-    REVERSAL
+    REVERSAL,
+    CONVERSION      // one currency's side of an exchange
 }

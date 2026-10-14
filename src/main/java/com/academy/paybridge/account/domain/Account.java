@@ -18,6 +18,7 @@ public class Account {
     @Column(name = "account_number", nullable = false, updatable = false, length = 10)
     private String accountNumber;
 
+    /** The owner: a customer id, or a partner id for PARTNER accounts. */
     @Column(name = "customer_id", nullable = false, updatable = false)
     private UUID customerId;
 
@@ -36,6 +37,10 @@ public class Account {
     @Column(name = "account_type", nullable = false, updatable = false, length = 20)
     private AccountType accountType;
 
+    /** For PARTNER accounts: the lowest balance allowed (minus the credit limit). Null otherwise. */
+    @Column(name = "balance_floor_minor")
+    private Long balanceFloorMinor;
+
     @Version
     private Long version;
 
@@ -45,15 +50,15 @@ public class Account {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected Account(){
-        // required by jPA: use Account.open(...) to create accounts;
+    protected Account() {
+        // required by JPA
     }
 
-    public static Account open(UUID customerId, String accountNumber, Currency currency, Instant now){
+    public static Account open(UUID customerId, String accountNumber, Currency currency, Instant now) {
         Account account = new Account();
         account.id = UUID.randomUUID();
-        account.accountNumber = accountNumber;
         account.customerId = customerId;
+        account.accountNumber = accountNumber;
         account.currency = currency;
         account.balanceMinor = 0;
         account.status = AccountStatus.ACTIVE;
@@ -63,19 +68,34 @@ public class Account {
         return account;
     }
 
-    public void credit(Money amount, Instant now){
+    /** A partner's position account. A negative balance means the partner owes PayBridge. */
+    public static Account openPartner(UUID partnerId, String accountNumber, Money creditLimit, Instant now) {
+        Account account = new Account();
+        account.id = UUID.randomUUID();
+        account.customerId = partnerId;
+        account.accountNumber = accountNumber;
+        account.currency = creditLimit.currency();
+        account.balanceMinor = 0;
+        account.status = AccountStatus.ACTIVE;
+        account.accountType = AccountType.PARTNER;
+        account.balanceFloorMinor = -creditLimit.minorUnits();
+        account.createdAt = now;
+        account.updatedAt = now;
+        return account;
+    }
+
+    public void credit(Money amount, Instant now) {
         requireValidAmount(amount);
-        if (status == AccountStatus.CLOSED){
-            throw new BusinessException("ACCOUNT_NOT_ACTIVE",
-                    "Account " + accountNumber + " is closed ");
+        if (status == AccountStatus.CLOSED) {
+            throw new BusinessException("ACCOUNT_CLOSED", "Account " + accountNumber + " is closed");
         }
         balanceMinor = Math.addExact(balanceMinor, amount.minorUnits());
         updatedAt = now;
     }
 
-    public void debit(Money amount, Instant now){
+    public void debit(Money amount, Instant now) {
         requireValidAmount(amount);
-        if (status != AccountStatus.ACTIVE){
+        if (status != AccountStatus.ACTIVE) {
             throw new BusinessException("ACCOUNT_NOT_ACTIVE",
                     "Account " + accountNumber + " cannot be debited while " + status);
         }
@@ -83,11 +103,18 @@ public class Account {
             throw new BusinessException("INSUFFICIENT_FUNDS",
                     "Account " + accountNumber + " has insufficient funds");
         }
+        if (accountType == AccountType.PARTNER) {
+            long resulting = Math.subtractExact(balanceMinor, amount.minorUnits());
+            if (balanceFloorMinor == null || resulting < balanceFloorMinor) {
+                throw new BusinessException("CREDIT_LIMIT_EXCEEDED",
+                        "This would exceed the partner's credit limit. Settle the outstanding balance first.");
+            }
+        }
         balanceMinor = Math.subtractExact(balanceMinor, amount.minorUnits());
         updatedAt = now;
     }
 
-    private void requireValidAmount(Money amount){
+    private void requireValidAmount(Money amount) {
         if (amount.currency() != currency) {
             throw new BusinessException("CURRENCY_MISMATCH",
                     "Account is " + currency + " but amount is " + amount.currency());
@@ -97,14 +124,13 @@ public class Account {
         }
     }
 
-    public UUID getId (){return id;}
-    public String getAccountNumber(){return accountNumber;}
-    public UUID getCustomerId(){return customerId;}
-    public Currency getCurrency(){return currency;}
-    public Money getBalance(){return new Money(balanceMinor, currency);}
-    public AccountStatus getStatus(){return status;}
-    public AccountType getAccountType(){return accountType;}
-    public Instant getCreatedAt(){return createdAt;}
-    public Instant getUpdatedAt(){return updatedAt;}
-
+    public UUID getId() { return id; }
+    public String getAccountNumber() { return accountNumber; }
+    public UUID getCustomerId() { return customerId; }
+    public Currency getCurrency() { return currency; }
+    public Money getBalance() { return new Money(balanceMinor, currency); }
+    public AccountStatus getStatus() { return status; }
+    public AccountType getAccountType() { return accountType; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

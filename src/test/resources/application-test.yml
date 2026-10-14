@@ -10,3 +10,5 @@ paybridge:
     provider-grace: 0s
     reconcile-enabled: false
     reconcile-min-age: 0s
+  fx:
+     fixed-mid-rate: "1500.00"

@@ -28,6 +28,9 @@ public class LedgerTransaction {
     @Column(updatable = false, length = 255)
     private String description;
 
+    @Column(name = "correlation_id", updatable = false, length = 100)
+    private String correlationId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false, length = 3)
     private Currency currency;
@@ -43,6 +46,7 @@ public class LedgerTransaction {
         tx.reference = request.reference();
         tx.type = request.type();
         tx.description = request.description();
+        tx.correlationId = request.correlationId();
         tx.currency = request.currency();
         tx.createdAt = now;
         return tx;

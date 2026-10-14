@@ -36,6 +36,7 @@ public class PartnerRegistrationController {
                 registered.partnerId(),
                 registered.name(),
                 registered.creditLimit().toMajor().toPlainString(),
+                registered.usdAccountNumber(),
                 registered.apiKey(),
                 "Store this key now. It cannot be shown again.");
     }

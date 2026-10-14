@@ -63,6 +63,25 @@ import java.util.UUID;
     }
 
     @Override
+    @Transactional
+    public AccountView openPartnerAccount(UUID partnerId, Money creditLimit) {
+        String accountNumber = generateUniqueAccountNumber();
+        Account account = Account.openPartner(partnerId, accountNumber, creditLimit, clock.instant());
+        return toView(accountRepository.save(account));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountView partnerAccount(UUID partnerId, Currency currency) {
+        return accountRepository
+                .findFirstByCustomerIdAndAccountTypeAndCurrency(partnerId, AccountType.PARTNER, currency)
+                .map(AccountService::toView)
+                .orElseThrow(() -> new BusinessException("PARTNER_ACCOUNT_NOT_FOUND",
+                        "This partner has no " + currency + " position account. "
+                                + "Partners registered before accounts existed must register again."));
+    }
+
+    @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public Money credit(UUID accountId, Money amount) {
         Account account = lockAccount(accountId);

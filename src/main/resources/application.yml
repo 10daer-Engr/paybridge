@@ -66,3 +66,10 @@ paybridge:
     reconcile-interval: PT1M
     reconcile-min-age: PT30S
     stuck-alert-after: PT1H
+  fx:
+    spread-bps: 150
+    fee-usd: "1.00"
+    quote-ttl: PT2M
+    min-send-usd: "5.00"
+    max-send-usd: "2000.00"
+    simulated-base-rate: "1500.00"

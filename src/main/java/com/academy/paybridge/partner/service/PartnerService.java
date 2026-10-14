@@ -1,5 +1,7 @@
 package com.academy.paybridge.partner.service;
 
+import com.academy.paybridge.account.api.AccountApi;
+import com.academy.paybridge.account.api.AccountView;
 import com.academy.paybridge.partner.api.PartnerApi;
 import com.academy.paybridge.partner.api.PartnerView;
 import com.academy.paybridge.partner.api.RegisteredPartner;
@@ -23,14 +25,17 @@ import java.util.UUID;
 public class PartnerService implements PartnerApi {
 
     private final PartnerRepository partnerRepository;
+    private final AccountApi accountApi;
     private final Clock clock;
     private final Money defaultCreditLimit;
 
     public PartnerService(PartnerRepository partnerRepository,
+                          AccountApi accountApi,
                           Clock clock,
                           @Value("${paybridge.partners.default-credit-limit-usd:10000.00}")
                           BigDecimal defaultCreditLimitUsd) {
         this.partnerRepository = partnerRepository;
+        this.accountApi = accountApi;
         this.clock = clock;
         this.defaultCreditLimit = Money.ofMajor(defaultCreditLimitUsd, Currency.USD);
     }
@@ -47,7 +52,11 @@ public class PartnerService implements PartnerApi {
         Partner saved = partnerRepository.save(Partner.register(
                 cleanName, contactEmail.trim(), ApiKeys.hash(apiKey), defaultCreditLimit, clock.instant()));
 
-        return new RegisteredPartner(saved.getId(), saved.getName(), saved.getCreditLimit(), apiKey);
+        // Same transaction: a partner never exists without its position account.
+        AccountView position = accountApi.openPartnerAccount(saved.getId(), defaultCreditLimit);
+
+        return new RegisteredPartner(saved.getId(), saved.getName(), saved.getCreditLimit(),
+                position.accountNumber(), apiKey);
     }
 
     @Override

@@ -20,6 +20,11 @@ public interface AccountApi {
 
     List<AccountView> listForCustomer(UUID customerId);
 
+    /** Opens a partner's position account. Its balance may go negative down to minus the credit limit. */
+    AccountView openPartnerAccount(UUID partnerId, Money creditLimit);
+
+    AccountView partnerAccount(UUID partnerId, Currency currency);
+
     /**
      * Increases the account balance under a row lock and returns the new balance.
      * Must be called inside an existing transaction.

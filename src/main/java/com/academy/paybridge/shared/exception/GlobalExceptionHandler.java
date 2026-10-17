@@ -44,9 +44,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static HttpStatus statusFor(String code) {
         return switch (code) {
-            case "IDEMPOTENCY_CONFLICT", "EMAIL_ALREADY_REGISTERED", "PARTNER_ALREADY_REGISTERED" -> HttpStatus.CONFLICT;
+            case "IDEMPOTENCY_CONFLICT", "EMAIL_ALREADY_REGISTERED", "PARTNER_ALREADY_REGISTERED",
+                 "QUOTE_ALREADY_USED", "DUPLICATE_PARTNER_REFERENCE" -> HttpStatus.CONFLICT;
             case "UNAUTHENTICATED" -> HttpStatus.UNAUTHORIZED;
-            case "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "RATE_UNAVAILABLE" -> HttpStatus.SERVICE_UNAVAILABLE;
+            case "PROVIDER_UNAVAILABLE", "PROVIDER_NOT_CONFIGURED", "RATE_UNAVAILABLE"
+                    -> HttpStatus.SERVICE_UNAVAILABLE;
             default -> code.endsWith("NOT_FOUND")
                     ? HttpStatus.NOT_FOUND
                     : HttpStatus.UNPROCESSABLE_ENTITY;

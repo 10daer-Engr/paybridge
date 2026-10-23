@@ -15,6 +15,8 @@ public record RemittanceResponse(
         String senderCountry,
         String recipientType,
         String recipientAccountNumber,
+        String recipientBankCode,
+        String recipientName,
         String sendAmount,
         String fee,
         String receiveAmount,
@@ -31,7 +33,8 @@ public record RemittanceResponse(
     static RemittanceResponse from(RemittanceView v, boolean replayed) {
         return new RemittanceResponse(
                 v.id(), v.status(), v.partnerReference(), v.quoteId(),
-                v.senderName(), v.senderCountry(), v.recipientType(), v.recipientAccountNumber(),
+                v.senderName(), v.senderCountry(), v.recipientType(),
+                v.recipientAccountNumber(), v.recipientBankCode(), v.recipientName(),
                 v.sendAmount().toMajor().toPlainString(),
                 v.fee().toMajor().toPlainString(),
                 v.receiveAmount().toMajor().toPlainString(),

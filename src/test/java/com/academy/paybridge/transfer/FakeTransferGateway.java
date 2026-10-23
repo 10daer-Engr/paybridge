@@ -24,11 +24,13 @@ public class FakeTransferGateway implements TransferGateway {
     private volatile Mode mode = Mode.SUCCEED;
     private final Map<String, GatewayTransferStatus> providerRecords = new ConcurrentHashMap<>();
     private final AtomicInteger initiateCalls = new AtomicInteger();
+    private volatile String resolvedName = "TEST ACCOUNT HOLDER";
 
     public void reset() {
         mode = Mode.SUCCEED;
         providerRecords.clear();
         initiateCalls.set(0);
+        resolvedName = "TEST ACCOUNT HOLDER";
     }
 
     public void setMode(Mode mode) {
@@ -49,11 +51,14 @@ public class FakeTransferGateway implements TransferGateway {
         return List.of(new Bank("Fake Bank", "058"));
     }
 
-    @Override
-    public ResolvedAccount resolveAccount(String accountNumber, String bankCode) {
-        return new ResolvedAccount(accountNumber, "TEST ACCOUNT HOLDER");
+    public void setResolvedName(String resolvedName) {
+        this.resolvedName = resolvedName;
     }
 
+    @Override
+    public ResolvedAccount resolveAccount(String accountNumber, String bankCode) {
+        return new ResolvedAccount(accountNumber, resolvedName);
+    }
     @Override
     public String createRecipient(String accountName, String accountNumber, String bankCode) {
         return "RCP_" + accountNumber;
@@ -87,4 +92,5 @@ public class FakeTransferGateway implements TransferGateway {
         return Optional.ofNullable(providerRecords.get(reference))
                 .map(status -> new GatewayTransferResult(reference, "TRF_fake", status, "verified"));
     }
+
 }

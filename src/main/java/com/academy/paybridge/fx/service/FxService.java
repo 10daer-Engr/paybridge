@@ -24,6 +24,8 @@ import com.academy.paybridge.ledger.api.LedgerTransactionType;
 import com.academy.paybridge.ledger.api.PostingLine;
 import com.academy.paybridge.ledger.api.PostingRequest;
 import com.academy.paybridge.ledger.api.PostingResult;
+import com.academy.paybridge.fx.api.ConversionReversal;
+import com.academy.paybridge.fx.api.ReverseConversionCommand;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -141,6 +143,48 @@ public class FxService implements FxApi {
                 "Exchange, NGN side", ngnLines, command.reference()));
 
         return new ConversionBooking(quote, usd.transactionId(), ngn.transactionId());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public ConversionReversal reverseConversion(ReverseConversionCommand command) {
+        FxQuote quote = quoteRepository.findById(command.quoteId())
+                .filter(q -> q.getRequesterId().equals(command.requesterId()))
+                .orElseThrow(() -> notFound(command.quoteId()));
+        if (quote.getStatus() != FxQuoteStatus.USED) {
+            throw new BusinessException("QUOTE_NOT_BOOKED", "Only a booked exchange can be reversed");
+        }
+
+        Money send = quote.getSendAmount();
+        Money fee = quote.getFee();
+        Money converted = quote.getConvertedAmount();
+        Money receive = quote.getReceiveAmount();
+        Money margin = quote.getMargin();
+        Money midValue = receive.plus(margin);
+
+        // USD: give the partner back everything, including the fee (the service was not delivered).
+        List<PostingLine> usdLines = new ArrayList<>();
+        usdLines.add(PostingLine.debit(SystemAccounts.FX_POSITION_USD, converted));
+        if (fee.isPositive()) {
+            usdLines.add(PostingLine.debit(SystemAccounts.FEE_REVENUE_USD, fee));
+        }
+        usdLines.add(PostingLine.credit(command.partnerAccountId(), send));
+        PostingResult usd = ledgerApi.post(new PostingRequest(
+                command.reference() + ":REV:USD", LedgerTransactionType.REVERSAL,
+                "Exchange reversal, USD side", usdLines, command.reference()));
+
+        // NGN: take the naira back out of where it was sent, and take back our margin.
+        List<PostingLine> ngnLines = new ArrayList<>();
+        ngnLines.add(PostingLine.debit(command.destinationAccountId(), receive));
+        if (margin.isPositive()) {
+            ngnLines.add(PostingLine.debit(SystemAccounts.FX_REVENUE_NGN, margin));
+        }
+        ngnLines.add(PostingLine.credit(SystemAccounts.FX_POSITION_NGN, midValue));
+        PostingResult ngn = ledgerApi.post(new PostingRequest(
+                command.reference() + ":REV:NGN", LedgerTransactionType.REVERSAL,
+                "Exchange reversal, NGN side", ngnLines, command.reference()));
+
+        return new ConversionReversal(usd.transactionId(), ngn.transactionId());
     }
 
     // ---- helpers ----

@@ -12,3 +12,7 @@ paybridge:
     reconcile-min-age: 0s
   fx:
      fixed-mid-rate: "1500.00"
+  compliance:
+    sender-daily-limit-usd: "1000000.00"
+    recipient-daily-limit-usd: "1000000.00"
+    partner-daily-limit-usd: "10000000.00"

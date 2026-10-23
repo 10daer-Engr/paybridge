@@ -55,6 +55,7 @@ paystack:
 paybridge:
   sandbox:
     funding-enabled: true
+    settlement-payments-enabled: true
     partner-registration-enabled: true
   partners:
     default-credit-limit-usd: 10000.00
@@ -73,3 +74,18 @@ paybridge:
     min-send-usd: "5.00"
     max-send-usd: "2000.00"
     simulated-base-rate: "1500.00"
+  compliance:
+    sender-daily-limit-usd: "3000.00"
+    recipient-daily-limit-usd: "5000.00"
+    partner-daily-limit-usd: "50000.00"
+    match-threshold: 0.85
+    blocked-names:
+      - Ivan Sanctionov
+      - Acme Blocked Trading
+    blocked-countries:
+      - KP
+  settlement:
+    min-age: PT0S
+  provider:
+    mode: paystack               # "simulated" uses the built-in payout provider (see README)
+    simulated-pending-seconds: 30

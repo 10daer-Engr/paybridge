@@ -10,5 +10,16 @@ public record CreateRemittanceCommand(
         UUID quoteId,
         String senderName,
         String senderCountry,
-        String recipientAccountNumber) {
+        String recipientAccountNumber,  // a PayBridge account, or a bank account when a bank code is given
+        String recipientBankCode) {     // null means "pay into a PayBridge account"
+
+    public CreateRemittanceCommand(UUID partnerId, String idempotencyKey, String partnerReference, UUID quoteId,
+                                   String senderName, String senderCountry, String recipientAccountNumber) {
+        this(partnerId, idempotencyKey, partnerReference, quoteId, senderName, senderCountry,
+                recipientAccountNumber, null);
+    }
+
+    public boolean isBankPayout() {
+        return recipientBankCode != null && !recipientBankCode.isBlank();
+    }
 }

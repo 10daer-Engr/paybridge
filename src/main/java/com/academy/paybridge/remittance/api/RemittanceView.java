@@ -15,6 +15,8 @@ public record RemittanceView(
         String senderCountry,
         String recipientType,
         String recipientAccountNumber,
+        String recipientBankCode,
+        String recipientName,
         Money sendAmount,
         Money fee,
         Money receiveAmount,

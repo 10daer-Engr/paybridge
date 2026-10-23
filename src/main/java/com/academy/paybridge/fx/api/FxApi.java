@@ -26,4 +26,10 @@ public interface FxApi {
      * margin credited). All or nothing. MUST run inside the caller's transaction.
      */
     ConversionBooking bookConversion(BookConversionCommand command);
+
+    /**
+     * Undoes a booked exchange by posting the mirror image of its entries, using the amounts stored on the
+     * quote (never today's rate). MUST run inside the caller's transaction.
+     */
+    ConversionReversal reverseConversion(ReverseConversionCommand command);
 }

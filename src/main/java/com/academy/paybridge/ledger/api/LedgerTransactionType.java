@@ -5,5 +5,6 @@ public enum LedgerTransactionType {
     TRANSFER,
     EXTERNAL_PAYOUT,
     REVERSAL,
-    CONVERSION      // one currency's side of an exchange
+    CONVERSION,     // one currency's side of an exchange
+    SETTLEMENT      // a partner paying what it owes
 }

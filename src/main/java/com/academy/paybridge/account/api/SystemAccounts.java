@@ -17,6 +17,8 @@ public final class SystemAccounts {
             UUID.fromString("00000000-0000-0000-0000-0000000000a5");
     public static final UUID FX_REVENUE_NGN =
             UUID.fromString("00000000-0000-0000-0000-0000000000a6");
+    public static final UUID NOSTRO_USD =
+            UUID.fromString("00000000-0000-0000-0000-0000000000a7");
 
     private SystemAccounts() {
     }

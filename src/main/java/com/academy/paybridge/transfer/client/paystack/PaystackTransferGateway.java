@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.net.http.HttpClient;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+@ConditionalOnProperty(prefix = "paybridge.provider", name = "mode", havingValue = "paystack", matchIfMissing = true)
 @Component
 class PaystackTransferGateway implements TransferGateway {
 

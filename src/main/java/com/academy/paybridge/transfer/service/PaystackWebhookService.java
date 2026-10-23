@@ -11,6 +11,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
+import com.academy.paybridge.transfer.api.PayoutEvent;
+import com.academy.paybridge.transfer.api.PayoutEventHandler;
+import com.academy.paybridge.transfer.api.PayoutEventResult;
+import com.academy.paybridge.transfer.api.PayoutStatus;
+import java.util.List;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -25,17 +30,20 @@ public class PaystackWebhookService {
 
     private final ExternalTransferApi externalTransferApi;
     private final WebhookEventRepository eventRepository;
+    private final List<PayoutEventHandler> payoutHandlers;
     private final JsonMapper jsonMapper;
     private final Clock clock;
 
     public PaystackWebhookService(ExternalTransferApi externalTransferApi,
                                   WebhookEventRepository eventRepository,
                                   JsonMapper jsonMapper,
-                                  Clock clock) {
+                                  Clock clock,
+                                  List<PayoutEventHandler> payoutHandlers) {
         this.externalTransferApi = externalTransferApi;
         this.eventRepository = eventRepository;
         this.jsonMapper = jsonMapper;
         this.clock = clock;
+        this.payoutHandlers = payoutHandlers;
     }
 
     /** Call only after the signature has been verified. */
@@ -81,12 +89,29 @@ public class PaystackWebhookService {
             return Result.MALFORMED;
         }
 
+        String reference = event.data().reference();
+
+        // Some references belong to other modules (for example "rem_" for remittances).
+        // We never name those modules: we just ask whoever claims the reference.
+        Optional<PayoutEventHandler> payoutHandler = payoutHandlers.stream()
+                .filter(h -> h.supports(reference))
+                .findFirst();
+        if (payoutHandler.isPresent()) {
+            PayoutEventResult outcome = payoutHandler.get().handle(new PayoutEvent(
+                    reference, PayoutStatus.valueOf(status.name()),
+                    event.data().transferCode(), event.data().amount()));
+            return switch (outcome) {
+                case APPLIED -> Result.PROCESSED;
+                case UNKNOWN_REFERENCE -> Result.UNKNOWN_REFERENCE;
+                case AMOUNT_MISMATCH -> Result.AMOUNT_MISMATCH;
+            };
+        }
+
         try {
             Optional<TransferView> updated = externalTransferApi.applyProviderUpdate(
-                    event.data().reference(), status, event.data().transferCode(), event.data().amount());
+                    reference, status, event.data().transferCode(), event.data().amount());
             if (updated.isEmpty()) {
-                // Normal for transfers made outside this app. Retrying would never help, so we say 200.
-                log.warn("Webhook {} for unknown reference {}", event.event(), event.data().reference());
+                log.warn("Webhook {} for unknown reference {}", event.event(), reference);
                 return Result.UNKNOWN_REFERENCE;
             }
             return Result.PROCESSED;

@@ -12,4 +12,7 @@ public interface RemittanceApi {
 
     /** The partner's 20 most recent remittances, newest first. */
     List<RemittanceView> recent(UUID partnerId);
+
+    /** Asks the provider what happened to a PROCESSING bank payout and settles it. Safe to repeat. */
+    RemittanceView refresh(UUID remittanceId, UUID partnerId);
 }

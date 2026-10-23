@@ -53,6 +53,12 @@ public class Remittance {
     @Column(name = "recipient_bank_code", updatable = false, length = 10)
     private String recipientBankCode;
 
+    @Column(name = "recipient_name", updatable = false, length = 150)
+    private String recipientName;
+
+    @Column(name = "recipient_provider_code", updatable = false, length = 50)
+    private String recipientProviderCode;
+
     @Column(name = "send_amount_minor", nullable = false, updatable = false)
     private long sendAmountMinor;
 
@@ -70,6 +76,18 @@ public class Remittance {
 
     @Column(name = "ngn_ledger_transaction_id")
     private UUID ngnLedgerTransactionId;
+
+    @Column(name = "usd_reversal_ledger_transaction_id")
+    private UUID usdReversalLedgerTransactionId;
+
+    @Column(name = "ngn_reversal_ledger_transaction_id")
+    private UUID ngnReversalLedgerTransactionId;
+
+    @Column(name = "provider_reference", length = 60)
+    private String providerReference;
+
+    @Column(name = "provider_transfer_code", length = 50)
+    private String providerTransferCode;
 
     @Column(name = "failure_reason", length = 255)
     private String failureReason;
@@ -95,6 +113,34 @@ public class Remittance {
                                               BigDecimal customerRate,
                                               UUID recipientAccountId, String recipientAccountNumber,
                                               Instant now) {
+        Remittance r = base(partnerId, idempotencyKey, partnerReference, quoteId, senderName, senderCountry,
+                sendAmount, fee, receiveAmount, customerRate, now);
+        r.recipientType = RecipientType.ACCOUNT;
+        r.recipientAccountId = recipientAccountId;
+        r.recipientAccountNumber = recipientAccountNumber;
+        return r;
+    }
+
+    public static Remittance receiveToBank(UUID partnerId, String idempotencyKey, String partnerReference,
+                                           UUID quoteId, String senderName, String senderCountry,
+                                           Money sendAmount, Money fee, Money receiveAmount,
+                                           BigDecimal customerRate,
+                                           String bankAccountNumber, String bankCode,
+                                           String recipientName, String recipientProviderCode,
+                                           Instant now) {
+        Remittance r = base(partnerId, idempotencyKey, partnerReference, quoteId, senderName, senderCountry,
+                sendAmount, fee, receiveAmount, customerRate, now);
+        r.recipientType = RecipientType.BANK;
+        r.recipientAccountNumber = bankAccountNumber;
+        r.recipientBankCode = bankCode;
+        r.recipientName = recipientName;
+        r.recipientProviderCode = recipientProviderCode;
+        return r;
+    }
+
+    private static Remittance base(UUID partnerId, String idempotencyKey, String partnerReference, UUID quoteId,
+                                   String senderName, String senderCountry, Money sendAmount, Money fee,
+                                   Money receiveAmount, BigDecimal customerRate, Instant now) {
         Remittance r = new Remittance();
         r.partnerId = partnerId;
         r.idempotencyKey = idempotencyKey;
@@ -103,9 +149,6 @@ public class Remittance {
         r.status = RemittanceStatus.PENDING;
         r.senderName = senderName;
         r.senderCountry = senderCountry;
-        r.recipientType = RecipientType.ACCOUNT;
-        r.recipientAccountId = recipientAccountId;
-        r.recipientAccountNumber = recipientAccountNumber;
         r.sendAmountMinor = sendAmount.minorUnits();
         r.feeMinor = fee.minorUnits();
         r.receiveAmountMinor = receiveAmount.minorUnits();
@@ -115,6 +158,7 @@ public class Remittance {
         return r;
     }
 
+    /** Delivery into a PayBridge account: instant, so PENDING goes straight to COMPLETED. */
     public void markCompleted(UUID usdLedgerTransactionId, UUID ngnLedgerTransactionId, Instant now) {
         moveTo(RemittanceStatus.COMPLETED, now);
         this.usdLedgerTransactionId = usdLedgerTransactionId;
@@ -122,9 +166,35 @@ public class Remittance {
         this.completedAt = now;
     }
 
+    /** Bank payout: the exchange is booked and the naira is committed to the provider, awaiting its answer. */
+    public void markProcessing(UUID usdLedgerTransactionId, UUID ngnLedgerTransactionId,
+                               String providerReference, Instant now) {
+        moveTo(RemittanceStatus.PROCESSING, now);
+        this.usdLedgerTransactionId = usdLedgerTransactionId;
+        this.ngnLedgerTransactionId = ngnLedgerTransactionId;
+        this.providerReference = providerReference;
+    }
+
+    public void confirmDelivered(Instant now) {
+        moveTo(RemittanceStatus.COMPLETED, now);
+        this.completedAt = now;
+    }
+
+    /** The exchange was undone by the reversal postings. */
+    public void reverse(String reason, UUID usdReversalTransactionId, UUID ngnReversalTransactionId, Instant now) {
+        moveTo(RemittanceStatus.REVERSED, now);
+        this.failureReason = reason != null && reason.length() > 255 ? reason.substring(0, 255) : reason;
+        this.usdReversalLedgerTransactionId = usdReversalTransactionId;
+        this.ngnReversalLedgerTransactionId = ngnReversalTransactionId;
+    }
+
     public void fail(String reason, Instant now) {
         moveTo(RemittanceStatus.FAILED, now);
         this.failureReason = reason != null && reason.length() > 255 ? reason.substring(0, 255) : reason;
+    }
+
+    public void recordProviderTransferCode(String providerTransferCode) {
+        this.providerTransferCode = providerTransferCode;
     }
 
     private void moveTo(RemittanceStatus next, Instant now) {
@@ -145,11 +215,15 @@ public class Remittance {
     public String getSenderCountry() { return senderCountry; }
     public RecipientType getRecipientType() { return recipientType; }
     public String getRecipientAccountNumber() { return recipientAccountNumber; }
+    public String getRecipientBankCode() { return recipientBankCode; }
+    public String getRecipientName() { return recipientName; }
+    public String getProviderReference() { return providerReference; }
     public Money getSendAmount() { return new Money(sendAmountMinor, Currency.USD); }
     public Money getFee() { return new Money(feeMinor, Currency.USD); }
     public Money getReceiveAmount() { return new Money(receiveAmountMinor, Currency.NGN); }
     public BigDecimal getCustomerRate() { return customerRate; }
     public String getFailureReason() { return failureReason; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public Instant getCompletedAt() { return completedAt; }
 }
